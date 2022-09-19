@@ -157,8 +157,6 @@ public class PostProcessingScheduler {
 
 	List<String> pclFileList = new LinkedList<>();
 
-	// List<String> fileList = new LinkedList<>();
-
 	@Scheduled(cron = "${cron-job-print-interval}")
 	public void postProcessing() {
 		String message = smartCommPostProcessing();
@@ -174,9 +172,9 @@ public class PostProcessingScheduler {
 			deletePreviousLogFile();
 			final CloudBlobContainer container = containerinfo();
 			Map<String, String> archiveMap = new HashMap<String, String>();
-			String sourcetDirectory = OUTPUT_DIRECTORY + ARCHIVE_TEMP_BACKUP_DIRECTORY + "temp-archive_"
+			String sourceDirectory = OUTPUT_DIRECTORY + ARCHIVE_TEMP_BACKUP_DIRECTORY + "temp-archive_"
 					+ currentDateTime + "/";
-			moveSourceToTargetDirectory(OUTPUT_DIRECTORY + ARCHIVE_DIRECTORY, sourcetDirectory, true, archiveMap,
+			moveSourceToTargetDirectory(OUTPUT_DIRECTORY + ARCHIVE_DIRECTORY, sourceDirectory, true, archiveMap,
 					currentDate, currentDateTime,container);
 			String transitTargetDirectory = OUTPUT_DIRECTORY + TRANSIT_DIRECTORY + "/" + currentDate + "-"
 					+ PROCESS_DIRECTORY + "/" + currentDateTime + PRINT_SUB_DIRECTORY + "/";
@@ -203,7 +201,6 @@ public class PostProcessingScheduler {
 			logFileName.delete();
 			updateLogFile.delete();
 			archiveMap.clear();
-			//System.gc();
 		} catch (Exception exception) {
 			logger.info("Exception smartComPostProcessing() " + exception.getMessage());
 			statusMessage = "error in copy file to blob directory";
@@ -221,7 +218,6 @@ public class PostProcessingScheduler {
 		Map<String, String> ccRecipientTypeMap = new HashMap<String, String>();
 		List<String> ccRecipeintFileTypeLIst = new LinkedList<String>();
 		Map<String, String> invalidCheckMap = new HashMap<>();
-		int count = 0;
 		String targetProcessedPrintDirectory = OUTPUT_DIRECTORY + TRANSIT_DIRECTORY + "/" + currentDate + "-"
 				+ PROCESS_DIRECTORY + "/" + currentDateTime + PRINT_SUB_DIRECTORY + "/";
 		try {
@@ -229,8 +225,6 @@ public class PostProcessingScheduler {
 			for (BlobItem blobItem : listBlobs) {
 				String fileName = findActualFileName(blobItem.getName());
 				logger.info("fileName:"+fileName);
-				count++;
-				logger.info("total file move to is :" + count);
 				BlobClient dstBlobClient = blobContainerClient.getBlobClient(targetDirectory + fileName);
 				BlobClient srcBlobClient = blobContainerClient.getBlobClient(blobItem.getName());
 				String updateSrcUrl = srcBlobClient.getBlobUrl();
@@ -247,13 +241,9 @@ public class PostProcessingScheduler {
 				}
 				
 			}
-		} catch (URISyntaxException uriSyntaxException) {
-			uriSyntaxException.printStackTrace();
-		} catch (StorageException storageException) {
-			storageException.printStackTrace();
-		} catch (IOException ioException) {
-			ioException.printStackTrace();
-		}
+		} catch (Exception exception) {
+			logger.info("Exception moveSourceToTargetDirectory() " + exception.getMessage());
+		} 
 	}
 
 	public boolean xmlInputFileValidation(Map<String, String> invalidCheckMap, String currentDate,
@@ -350,7 +340,6 @@ public class PostProcessingScheduler {
 			String currentDate) {
 		Map<String, List<String>> postProcessMap = new HashMap<>();
 		String statusMessage = "SmartComm PostProcessing completed successfully";
-		int count = 0;
 		try {
 			Iterable<ListBlobItem> blobList = transitDirectory.listBlobs();
 			for (ListBlobItem blobItem : blobList) {
@@ -358,8 +347,6 @@ public class PostProcessingScheduler {
 				logger.info("process file:" + fileName);
 				CloudBlockBlob intialFileDownload = transitDirectory.getBlockBlobReference(fileName);
 				intialFileDownload.downloadToFile(fileName);
-				count++;
-				logger.info("total file is prcoessed is:" + count);
 				boolean stateType = checkStateType(fileName);
 				if (stateType) {
 					if (stateType && !(fileName.contains("_CC_"))) {
@@ -497,7 +484,6 @@ public class PostProcessingScheduler {
 		CloudBlobContainer container = containerinfo();
 		Map<String, List<String>> updatePostProcessMap = new HashMap<>();
 		MemoryUsageSetting memoryUsageSetting = MemoryUsageSetting.setupMainMemoryOnly();
-		int count = 0;
 		for (String fileType : postProcessMap.keySet()) {
 			try {
 				List<String> claimNbrSortedList = new LinkedList<>();
@@ -517,8 +503,6 @@ public class PostProcessingScheduler {
 					for (String fileName : fileNameList) {
 						File file = new File(fileName);
 						logger.info("process file for pcl is:" + fileName);
-						count++;
-						logger.info("total number of files for pcl genarate is:" + count);
 						CloudBlockBlob blob = transitDirectory.getBlockBlobReference(fileName);
 						blob.downloadToFile(file.getAbsolutePath());
 						String claimNbr = fileName.substring(14, fileName.length());
@@ -541,7 +525,7 @@ public class PostProcessingScheduler {
 					statusMessage = convertPDFToPCL(mergePdfFile, container);
 					updatePostProcessMap.put(fileType, fileNameList);
 					bannerFile.delete();
-					// new File(mergePdfFile).delete();
+					new File(mergePdfFile).delete();
 					new File(blankPage).delete();
 					deleteFiles(claimNbrSortedList);
 
